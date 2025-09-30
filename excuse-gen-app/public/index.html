@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excuse Email Draft Tool</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React and ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .slider-track {
+            background: linear-gradient(to right, #fbbf24 0%, #f59e0b 25%, #d97706 50%, #b45309 75%, #92400e 100%);
+        }
+        
+        .loading-spinner {
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="root"></div>
+
+    <script>
+        const { useState, useEffect } = React;
+
+        // Main App Component
+        function App() {
+            // Form state
+            const [formData, setFormData] = useState({
+                category: 'Running Late',
+                tone: 'Sincere',
+                seriousness: 3,
+                recipient_name: '',
+                sender_name: '',
+                eta_when: ''
+            });
+
+            // App state
+            const [generatedEmail, setGeneratedEmail] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [copySuccess, setCopySuccess] = useState(false);
+
+            // Categories and tones
+            const categories = [
+                'Running Late', 'Missed Meeting', 'Deadline', 
+                'WFH/OOO', 'Social', 'Travel'
+            ];
+            
+            const tones = ['Sincere', 'Playful', 'Corporate'];
+
+            // Handle form input changes
+            const handleInputChange = (field, value) => {
+                setFormData(prev => ({
+                    ...prev,
+                    [field]: value
+                }));
+            };
+
+            // Validate form
+            const isFormValid = () => {
+                return formData.recipient_name.trim() && 
+                       formData.sender_name.trim() && 
+                       formData.eta_when.trim();
+            };
+
+            // Generate excuse email
+            const generateExcuse = async () => {
+                if (!isFormValid()) {
+                    setError('Please fill in all required fields');
+                    return;
+                }
+
+                setIsLoading(true);
+                setError(null);
+                setGeneratedEmail(null);
+
+                try {
+                    const response = await fetch('/api/generate-excuse', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to generate excuse');
+                    }
+
+                    const data = await response.json();
+                    setGeneratedEmail(data);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            // Clear form and output
+            const clearAll = () => {
+                setFormData({
+                    category: 'Running Late',
+                    tone: 'Sincere',
+                    seriousness: 3,
+                    recipient_name: '',
+                    sender_name: '',
+                    eta_when: ''
+                });
+                setGeneratedEmail(null);
+                setError(null);
+                setCopySuccess(false);
+            };
+
+            // Copy to clipboard
+            const copyToClipboard = async () => {
+                if (!generatedEmail) return;
+
+                const emailText = `Subject: ${generatedEmail.subject}\n\n${generatedEmail.body}`;
+                
+                try {
+                    await navigator.clipboard.writeText(emailText);
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 2000);
+                } catch (err) {
+                    console.error('Failed to copy: ', err);
+                }
+            };
+
+            return (
+                React.createElement('div', { className: 'min-h-screen bg-gray-50' },
+                    // Header
+                    React.createElement('header', { className: 'bg-white shadow-sm border-b' },
+                        React.createElement('div', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6' },
+                            React.createElement('h1', { className: 'text-3xl font-bold text-gray-900 text-center' }, 
+                                'Excuse Email Draft Tool'
+                            ),
+                            React.createElement('p', { className: 'text-lg text-gray-600 text-center mt-2' }, 
+                                'Powered by Databricks Model Serving LLM'
+                            )
+                        )
+                    ),
+
+                    // Main Content
+                    React.createElement('main', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8' },
+                        React.createElement('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-8' },
+                            
+                            // Form Card (Left Panel)
+                            React.createElement('div', { className: 'bg-white rounded-lg shadow-md border p-6' },
+                                React.createElement('h2', { className: 'text-xl font-semibold text-gray-900 mb-6' }, 
+                                    'Email Configuration'
+                                ),
+                                
+                                // Category Dropdown
+                                React.createElement('div', { className: 'mb-4' },
+                                    React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 
+                                        'Category'
+                                    ),
+                                    React.createElement('select', {
+                                        value: formData.category,
+                                        onChange: (e) => handleInputChange('category', e.target.value),
+                                        className: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                                    }, categories.map(cat => 
+                                        React.createElement('option', { key: cat, value: cat }, cat)
+                                    ))
+                                ),
+
+                                // Tone Dropdown
+                                React.createElement('div', { className: 'mb-4' },
+                                    React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 
+                                        'Tone'
+                                    ),
+                                    React.createElement('select', {
+                                        value: formData.tone,
+                                        onChange: (e) => handleInputChange('tone', e.target.value),
+                                        className: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                                    }, tones.map(tone => 
+                                        React.createElement('option', { key: tone, value: tone }, tone)
+                                    ))
+                                ),
+
+                                // Seriousness Slider
+                                React.createElement('div', { className: 'mb-4' },
+                                    React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 
+                                        `Seriousness Level: ${formData.seriousness} (${formData.seriousness === 1 ? 'Very Silly' : formData.seriousness === 5 ? 'Serious' : 'Moderate'})`
+                                    ),
+                                    React.createElement('input', {
+                                        type: 'range',
+                                        min: 1,
+                                        max: 5,
+                                        value: formData.seriousness,
+                                        onChange: (e) => handleInputChange('seriousness', parseInt(e.target.value)),
+                                        className: 'w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-track'
+                                    }),
+                                    React.createElement('div', { className: 'flex justify-between text-xs text-gray-500 mt-1' },
+                                        React.createElement('span', null, '1 (Very Silly)'),
+                                        React.createElement('span', null, '5 (Serious)')
+                                    )
+                                ),
+
+                                // Recipient Name
+                                React.createElement('div', { className: 'mb-4' },
+                                    React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 
+                                        'Recipient Name *'
+                                    ),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        value: formData.recipient_name,
+                                        onChange: (e) => handleInputChange('recipient_name', e.target.value),
+                                        placeholder: 'Enter recipient name',
+                                        className: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                                    })
+                                ),
+
+                                // Sender Name
+                                React.createElement('div', { className: 'mb-4' },
+                                    React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 
+                                        'Sender Name *'
+                                    ),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        value: formData.sender_name,
+                                        onChange: (e) => handleInputChange('sender_name', e.target.value),
+                                        placeholder: 'Enter your name',
+                                        className: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                                    })
+                                ),
+
+                                // ETA/When
+                                React.createElement('div', { className: 'mb-6' },
+                                    React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 
+                                        'ETA/When *'
+                                    ),
+                                    React.createElement('input', {
+                                        type: 'text',
+                                        value: formData.eta_when,
+                                        onChange: (e) => handleInputChange('eta_when', e.target.value),
+                                        placeholder: 'e.g., 15 minutes, tomorrow morning, next week',
+                                        className: 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+                                    })
+                                ),
+
+                                // Action Buttons
+                                React.createElement('div', { className: 'flex gap-3' },
+                                    React.createElement('button', {
+                                        onClick: generateExcuse,
+                                        disabled: isLoading || !isFormValid(),
+                                        className: `flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+                                            isLoading || !isFormValid() 
+                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                                                : 'bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
+                                        }`
+                                    }, isLoading ? 
+                                        React.createElement('div', { className: 'flex items-center justify-center' },
+                                            React.createElement('div', { className: 'loading-spinner mr-2' }),
+                                            'Generating...'
+                                        ) : 
+                                        'Generate Email'
+                                    ),
+                                    React.createElement('button', {
+                                        onClick: clearAll,
+                                        className: 'flex-1 py-2 px-4 rounded-md font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
+                                    }, 'Clear')
+                                )
+                            ),
+
+                            // Output Card (Right Panel)
+                            React.createElement('div', { className: 'bg-white rounded-lg shadow-md border p-6' },
+                                React.createElement('h2', { className: 'text-xl font-semibold text-gray-900 mb-6' }, 
+                                    'Generated Email'
+                                ),
+                                
+                                // Output Content
+                                React.createElement('div', { className: 'min-h-96' },
+                                    // Loading State
+                                    isLoading && React.createElement('div', { className: 'flex items-center justify-center h-96' },
+                                        React.createElement('div', { className: 'text-center' },
+                                            React.createElement('div', { className: 'loading-spinner mx-auto mb-4' }),
+                                            React.createElement('p', { className: 'text-gray-600' }, 'Generating your excuse email...')
+                                        )
+                                    ),
+
+                                    // Error State
+                                    error && !isLoading && React.createElement('div', { className: 'bg-red-50 border border-red-200 rounded-md p-4' },
+                                        React.createElement('div', { className: 'flex' },
+                                            React.createElement('div', { className: 'flex-shrink-0' },
+                                                React.createElement('svg', { className: 'h-5 w-5 text-red-400', viewBox: '0 0 20 20', fill: 'currentColor' },
+                                                    React.createElement('path', { fillRule: 'evenodd', d: 'M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z', clipRule: 'evenodd' })
+                                                )
+                                            ),
+                                            React.createElement('div', { className: 'ml-3' },
+                                                React.createElement('h3', { className: 'text-sm font-medium text-red-800' }, 'Error'),
+                                                React.createElement('p', { className: 'text-sm text-red-700 mt-1' }, error)
+                                            )
+                                        )
+                                    ),
+
+                                    // Generated Email Content
+                                    generatedEmail && !isLoading && React.createElement('div', { className: 'fade-in' },
+                                        React.createElement('div', { className: 'mb-4' },
+                                            React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 'Subject:'),
+                                            React.createElement('div', { className: 'bg-gray-50 border rounded-md p-3 font-medium text-gray-900' }, 
+                                                generatedEmail.subject
+                                            )
+                                        ),
+                                        React.createElement('div', { className: 'mb-6' },
+                                            React.createElement('label', { className: 'block text-sm font-medium text-gray-700 mb-2' }, 'Email Body:'),
+                                            React.createElement('div', { className: 'bg-gray-50 border rounded-md p-3 text-gray-900 whitespace-pre-line' }, 
+                                                generatedEmail.body
+                                            )
+                                        ),
+                                        React.createElement('button', {
+                                            onClick: copyToClipboard,
+                                            className: `w-full py-2 px-4 rounded-md font-medium transition-colors ${
+                                                copySuccess 
+                                                    ? 'bg-green-600 text-white' 
+                                                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                                            } focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2`
+                                        }, copySuccess ? '✓ Copied to Clipboard!' : 'Copy to Clipboard')
+                                    ),
+
+                                    // Placeholder State
+                                    !generatedEmail && !isLoading && !error && React.createElement('div', { className: 'flex items-center justify-center h-96' },
+                                        React.createElement('div', { className: 'text-center text-gray-500' },
+                                            React.createElement('svg', { className: 'mx-auto h-12 w-12 text-gray-400 mb-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+                                                React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' })
+                                            ),
+                                            React.createElement('p', { className: 'text-lg font-medium' }, 'Your excuse email will appear here...'),
+                                            React.createElement('p', { className: 'text-sm mt-2' }, 'Fill out the form and click "Generate Email" to get started')
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>
